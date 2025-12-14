@@ -4,7 +4,17 @@ from enum import Enum
 
 
 class MiiType(Enum):
-    """Enum describing different Mii database types with their configurations"""
+    """Enum describing different Mii database types with their configurations
+
+    Examples:
+        >>> from pathlib import Path
+        >>> from mii import MiiDatabase, MiiType
+        >>> # Load Wii Plaza database
+        >>> database = MiiDatabase(Path("RFL_DB.dat"), MiiType.WII_PLAZA)
+        >>> # Access type properties
+        >>> print(MiiType.WII_PLAZA.SOURCE)
+        >>> print(MiiType.WII_PLAZA.display_name)
+    """
 
     WII_PLAZA = ("RFL_DB.dat", 0x4, 74, 0, 49, "WII_PL")
     WII_PARADE = ("RFL_DB.dat", 0x1F1E0, 64, 10, 10_000, "WII_PA")

@@ -26,6 +26,12 @@ class MiiDatabase:
 
         Raises:
             MiiDatabaseError: If file doesn't exist or can't be read
+
+        Examples:
+            >>> from pathlib import Path
+            >>> from mii import MiiDatabase, MiiType
+            >>> database = MiiDatabase(Path("RFL_DB.dat"), MiiType.WII_PLAZA)
+            >>> print(len(database))
         """
         if not file_path.exists():
             raise MiiDatabaseError(f"{file_path} not found")
@@ -88,6 +94,11 @@ class MiiDatabase:
 
         Returns:
             List of Miis that match the predicate
+
+        Examples:
+            >>> database = MiiDatabase(Path("RFL_DB.dat"), MiiType.WII_PLAZA)
+            >>> red_miis = database.filter(lambda m: m.favorite_color == "Red")
+            >>> named_miis = database.filter(lambda m: m.name and m.name != "Unnamed")
         """
         return [mii for mii in self._miis if predicate(mii)]
 
@@ -96,7 +107,20 @@ class MiiDatabase:
         return self._miis.copy()
 
     def get_by_name(self, name: str) -> Optional[Mii]:
-        """Get the first Mii with a matching name (case-insensitive)"""
+        """Get the first Mii with a matching name (case-insensitive)
+
+        Args:
+            name: Name to search for
+
+        Returns:
+            Mii with matching name, or None if not found
+
+        Examples:
+            >>> database = MiiDatabase(Path("RFL_DB.dat"), MiiType.WII_PLAZA)
+            >>> mii = database.get_by_name("My Mii")
+            >>> if mii:
+            ...     print(mii.creator_name)
+        """
         name_lower = name.lower()
         for mii in self._miis:
             if mii.name.lower() == name_lower:
@@ -104,7 +128,16 @@ class MiiDatabase:
         return None
 
     def get_favorites(self) -> List[Mii]:
-        """Get all favorite Miis"""
+        """Get all favorite Miis
+
+        Returns:
+            List of Miis marked as favorites
+
+        Examples:
+            >>> database = MiiDatabase(Path("RFL_DB.dat"), MiiType.WII_PLAZA)
+            >>> favorites = database.get_favorites()
+            >>> print(f"Found {len(favorites)} favorite Miis")
+        """
         return self.filter(lambda m: m.is_favorite)
 
     def export_all(self, output_dir: Path, prefix: Optional[str] = None) -> List[Path]:
@@ -116,6 +149,11 @@ class MiiDatabase:
 
         Returns:
             List of Path objects for the exported files
+
+        Examples:
+            >>> database = MiiDatabase(Path("RFL_DB.dat"), MiiType.WII_PLAZA)
+            >>> exported = database.export_all(Path("./miis"))
+            >>> print(f"Exported {len(exported)} Miis")
         """
         output_dir.mkdir(parents=True, exist_ok=True)
         file_prefix = prefix if prefix is not None else self.mii_type.PREFIX

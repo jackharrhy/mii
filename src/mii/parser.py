@@ -88,6 +88,12 @@ class MiiParser:
 
         Returns:
             Mii dataclass instance
+
+        Examples:
+            >>> with open("WII_PL00000.mii", "rb") as f:
+            ...     mii_data = f.read()
+            >>> mii = MiiParser.parse(mii_data)
+            >>> print(mii.name)
         """
         mii_name = cls._read_mii_name(data)
         creator_name = cls._read_creator_name(data)
