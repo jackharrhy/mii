@@ -4,22 +4,27 @@ Mii Extractor CLI - A tool for extracting .mii files from Dolphin dumped data
 """
 
 import csv
+import sys
 from pathlib import Path
 from typing import Optional
 
-import typer
-from rich.console import Console
-from rich.table import Table
-from rich.progress import Progress
+try:
+    import typer
+    from rich.console import Console
+    from rich.table import Table
+    from rich.progress import Progress
+except ImportError:
+    print(
+        "Error: CLI dependencies not found. Please install with: pip install mii[cli]",
+        file=sys.stderr,
+    )
+    sys.exit(1)
 
 from mii import (
-    MiiFileReader,
+    MiiDatabase,
+    MiiParser,
     MiiType,
-    extract_miis_from_type,
-    MiiExtractionError,
-    get_mii_mode,
-    get_mii_seconds,
-    get_mii_datetime,
+    MiiDatabaseError,
 )
 
 app = typer.Typer(help="Extract and analyze Mii files from Wii/Dolphin files")
@@ -54,24 +59,25 @@ def extract(
                 selected_type = MiiType[enum_name]
 
             try:
+                # Load database into memory
+                source_file = input_file or Path(selected_type.SOURCE)
+                database = MiiDatabase(source_file, selected_type)
+
                 with Progress() as progress:
                     task = progress.add_task(
                         f"[cyan]Extracting {selected_type.PREFIX} Miis...",
-                        total=selected_type.LIMIT,
+                        total=len(database),
                     )
 
-                    # Wrap extraction with progress tracking
-                    extracted_files = extract_miis_from_type(
-                        selected_type, input_file, output_dir
-                    )
-                    progress.update(task, completed=len(extracted_files))
+                    exported_paths = database.export_all(output_dir)
+                    progress.update(task, completed=len(exported_paths))
 
                 console.print(
-                    f"[green]Extracted {len(extracted_files)} {selected_type.PREFIX} Miis to {output_dir}[/green]"
+                    f"[green]Extracted {len(exported_paths)} {selected_type.PREFIX} Miis to {output_dir}[/green]"
                 )
-                total_extracted = len(extracted_files)
+                total_extracted = len(exported_paths)
 
-            except MiiExtractionError as e:
+            except MiiDatabaseError as e:
                 console.print(f"[red]Error: {e}[/red]")
                 raise typer.Exit(1)
 
@@ -86,17 +92,23 @@ def extract(
 
         for mii_enum in MiiType:
             try:
+                # Load database into memory
+                source_file = Path(mii_enum.SOURCE)
+                database = MiiDatabase(source_file, mii_enum)
+
+                type_output_dir = output_dir / mii_enum.display_name
+
                 with Progress() as progress:
                     task = progress.add_task(
                         f"[cyan]Extracting {mii_enum.PREFIX} Miis...",
-                        total=mii_enum.LIMIT,
+                        total=len(database),
                     )
 
-                    extracted_files = extract_miis_from_type(mii_enum, None, output_dir)
-                    progress.update(task, completed=len(extracted_files))
+                    exported_paths = database.export_all(type_output_dir)
+                    progress.update(task, completed=len(exported_paths))
 
-                total_extracted += len(extracted_files)
-            except MiiExtractionError:
+                total_extracted += len(exported_paths)
+            except MiiDatabaseError:
                 # Continue with other types if one fails
                 pass
 
@@ -133,18 +145,16 @@ def times(
 
     for mii_file in sorted(mii_files):
         try:
-            file_size = mii_file.stat().st_size
-            is_wii_mii = get_mii_mode(mii_file.name, file_size)
+            with open(mii_file, "rb") as f:
+                mii_data = f.read()
+            mii = MiiParser.parse(mii_data)
 
-            with open(mii_file, "rb") as infile:
-                seconds = get_mii_seconds(infile, is_wii_mii)
-                creation_time = get_mii_datetime(seconds, is_wii_mii)
-
-                mii_type = "Wii" if is_wii_mii else "3DS/WiiU"
-                table.add_row(
-                    mii_file.name, creation_time.strftime("%Y-%m-%d %H:%M:%S"), mii_type
-                )
-                successful_analyses += 1
+            creation_time = mii.get_creation_datetime()
+            mii_type = "Wii" if mii.is_wii_mii else "3DS/WiiU"
+            table.add_row(
+                mii_file.name, creation_time.strftime("%Y-%m-%d %H:%M:%S"), mii_type
+            )
+            successful_analyses += 1
 
         except Exception as err:
             console.print(f"[red]Error analyzing {mii_file.name}: {err}[/red]")
@@ -170,39 +180,33 @@ def metadata(
     """Display metadata for Mii files (names, colors, birthdays, etc.)"""
 
     if single_file:
-        # Analyze single file
         if not single_file.exists():
             console.print(f"[red]Error: File {single_file} does not exist[/red]")
             raise typer.Exit(1)
 
         try:
-            reader = MiiFileReader(single_file)
-            metadata_dict = reader.read_all_metadata()
+            with open(single_file, "rb") as f:
+                mii_data = f.read()
+            mii = MiiParser.parse(mii_data)
 
             table = Table(title=f"Metadata for {single_file.name}")
             table.add_column("Property", style="cyan")
             table.add_column("Value", style="green")
 
-            table.add_row("Mii Name", metadata_dict["mii_name"])
-            table.add_row("Creator Name", metadata_dict["creator_name"])
-            table.add_row("Gender", metadata_dict["gender"])
+            table.add_row("Mii Name", mii.name)
+            table.add_row("Creator Name", mii.creator_name)
+            table.add_row("Gender", mii.get_gender_string())
             table.add_row(
                 "Birth Month",
-                str(metadata_dict["birth_month"])
-                if metadata_dict["birth_month"]
-                else "Not set",
+                str(mii.birth_month) if mii.birth_month else "Not set",
             )
             table.add_row(
                 "Birth Day",
-                str(metadata_dict["birth_day"])
-                if metadata_dict["birth_day"]
-                else "Not set",
+                str(mii.birth_day) if mii.birth_day else "Not set",
             )
-            table.add_row("Favorite Color", metadata_dict["favorite_color"])
-            table.add_row(
-                "Is Favorite", "Yes" if metadata_dict["is_favorite"] else "No"
-            )
-            table.add_row("Mii ID", metadata_dict["mii_id"])
+            table.add_row("Favorite Color", mii.favorite_color)
+            table.add_row("Is Favorite", "Yes" if mii.is_favorite else "No")
+            table.add_row("Mii ID", mii.get_mii_id_hex())
 
             console.print(table)
 
@@ -211,7 +215,6 @@ def metadata(
             raise typer.Exit(1)
 
     else:
-        # Analyze directory
         if not directory.exists():
             console.print(f"[red]Error: Directory {directory} does not exist[/red]")
             raise typer.Exit(1)
@@ -228,12 +231,23 @@ def metadata(
 
         for mii_file in sorted(mii_files):
             try:
-                reader = MiiFileReader(mii_file)
-                metadata_dict = reader.read_all_metadata()
+                with open(mii_file, "rb") as f:
+                    mii_data = f.read()
+                mii = MiiParser.parse(mii_data)
 
                 result_data = {
                     "filename": mii_file.name,
-                    **metadata_dict,
+                    "mii_name": mii.name,
+                    "creator_name": mii.creator_name,
+                    "is_girl": mii.is_girl,
+                    "gender": mii.get_gender_string(),
+                    "birth_month": mii.birth_month,
+                    "birth_day": mii.birth_day,
+                    "birthday": mii.get_birthday_string(),
+                    "favorite_color": mii.favorite_color,
+                    "favorite_color_index": mii.favorite_color_index,
+                    "is_favorite": mii.is_favorite,
+                    "mii_id": mii.get_mii_id_hex(),
                 }
 
                 results.append(result_data)
@@ -243,7 +257,6 @@ def metadata(
                 console.print(f"[red]Error analyzing {mii_file.name}: {err}[/red]")
 
         if csv_output:
-            # Save to CSV
             if results:
                 fieldnames = [
                     "filename",
@@ -271,7 +284,6 @@ def metadata(
             else:
                 console.print("[yellow]No data to save to CSV[/yellow]")
         else:
-            # Display table
             table = Table(title="Mii Metadata")
             table.add_column("Filename", style="cyan")
             table.add_column("Mii Name", style="green")
@@ -285,7 +297,7 @@ def metadata(
                     result["filename"],
                     result["mii_name"],
                     result["creator_name"],
-                    result["gender"][0],  # Just show M/F for display
+                    result["gender"][0],
                     result["birthday"],
                     result["favorite_color"],
                 )
@@ -323,5 +335,10 @@ def info():
     )
 
 
-if __name__ == "__main__":
+def main():
+    """Entry point for the CLI"""
     app()
+
+
+if __name__ == "__main__":
+    main()

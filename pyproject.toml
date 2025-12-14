@@ -1,6 +1,6 @@
 [project]
 name = "mii"
-version = "0.2.0"
+version = "0.1.0"
 description = "Library and CLI tool for extracting and analyzing Mii files from Nintendo console database dumps"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -10,4 +10,4 @@ dependencies = []
 cli = ["typer>=0.17.4", "rich>=13.0.0"]
 
 [project.scripts]
-mii-cli = "main:app"
+mii-cli = "mii_cli:app"
