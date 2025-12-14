@@ -1,5 +1,7 @@
 # mii-lib
 
+https://jackharrhy.github.io/mii-lib/
+
 https://pypi.org/project/mii-lib/
 
 Library and CLI for extracting .mii files from misc. Wii/Dolphin data dumps, and extracting information from them (name, fav. color, gender, etc.)
