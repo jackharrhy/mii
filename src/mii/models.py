@@ -42,20 +42,47 @@ class Mii:
         return int_id * multiplier
 
     def get_creation_datetime(self) -> datetime:
-        """Get creation datetime for this Mii"""
+        """Get creation datetime for this Mii
+
+        Returns:
+            Datetime object representing when the Mii was created
+
+        Examples:
+            >>> mii = database[0]
+            >>> creation_time = mii.get_creation_datetime()
+            >>> print(creation_time.strftime("%Y-%m-%d %H:%M:%S"))
+        """
         seconds = self.get_creation_seconds()
         base_date = datetime(2006, 1, 1) if self.is_wii_mii else datetime(2010, 1, 1)
         shift = timedelta(seconds=seconds)
         return base_date + shift
 
     def get_birthday_string(self) -> str:
-        """Get formatted birthday string"""
+        """Get formatted birthday string
+
+        Returns:
+            Formatted birthday string (e.g., "1/15") or "Not set"
+
+        Examples:
+            >>> mii = database[0]
+            >>> print(mii.get_birthday_string())
+            "1/15"
+        """
         if self.birth_month and self.birth_day:
             return f"{self.birth_month}/{self.birth_day}"
         return "Not set"
 
     def get_gender_string(self) -> str:
-        """Get formatted gender string"""
+        """Get formatted gender string
+
+        Returns:
+            "Female" or "Male"
+
+        Examples:
+            >>> mii = database[0]
+            >>> print(mii.get_gender_string())
+            "Female"
+        """
         return "Female" if self.is_girl else "Male"
 
     def to_bytes(self) -> bytes:
@@ -65,7 +92,16 @@ class Mii:
         return self.raw_data
 
     def get_mii_id_hex(self) -> str:
-        """Get Mii ID as uppercase hex string"""
+        """Get Mii ID as uppercase hex string
+
+        Returns:
+            Mii ID as uppercase hexadecimal string
+
+        Examples:
+            >>> mii = database[0]
+            >>> print(mii.get_mii_id_hex())
+            "A1B2C3D4"
+        """
         return self.mii_id.hex().upper()
 
     def export(self, path: Path) -> None:
@@ -73,6 +109,10 @@ class Mii:
 
         Args:
             path: Path where the Mii file should be written
+
+        Examples:
+            >>> mii = database[0]
+            >>> mii.export(Path("./my_mii.mii"))
         """
         path.parent.mkdir(parents=True, exist_ok=True)
         with open(path, "wb") as f:

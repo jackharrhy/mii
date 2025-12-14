@@ -4,16 +4,6 @@ https://pypi.org/project/mii/
 
 Library and CLI for extracting .mii files from misc. Wii/Dolphin data dumps, and extracting information from them (name, fav. color, gender, etc.)
 
-This is all based around reading from a [`RFL_DB.dat` file](https://wiibrew.org/wiki//shared2/menu/FaceLib/RFL_DB.dat).
-
-After having used the Mii Channel in Dolphin, and assuming its saved the contents of it to disk at some point, you'll find it in one of the following folders:
-
-- `C:\Users\<Your Username>\Documents\Dolphin Emulator\Wii\shared2\menu\FaceLib\`
-- `C:\Users\<Your Username>\AppData\Roaming\Dolphin Emulator\Wii\shared2\menu\FaceLib\`
-- `~/.dolphin-emu/Wii/shared2/menu/FaceLib/`
-
-If none of these exist, check where Dolphin is savings its data to in its settings.
-
 ## Installation
 
 - Library only: `pip install mii`
@@ -42,4 +32,18 @@ print(mii.get_birthday_string())
 
 More complete examples can be found in [examples/library_usage.py](./examples/library_usage.py)
 
-Based on https://github.com/PuccamiteTech/PyMii/
+## RFL_DB.dat
+
+This is all based around reading from a [`RFL_DB.dat` file](https://wiibrew.org/wiki//shared2/menu/FaceLib/RFL_DB.dat).
+
+After having used the Mii Channel in Dolphin, and assuming its saved the contents of it to disk at some point, you'll find it in one of the following folders:
+
+- `C:\Users\<Your Username>\Documents\Dolphin Emulator\Wii\shared2\menu\FaceLib\`
+- `C:\Users\<Your Username>\AppData\Roaming\Dolphin Emulator\Wii\shared2\menu\FaceLib\`
+- `~/.dolphin-emu/Wii/shared2/menu/FaceLib/`
+
+If none of these exist, check where Dolphin is savings its data to in its settings.
+
+---
+
+Originally based on https://github.com/PuccamiteTech/PyMii/
