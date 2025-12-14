@@ -15,7 +15,7 @@ try:
     from rich.progress import Progress
 except ImportError:
     print(
-        "Error: CLI dependencies not found. Please install with: pip install mii[cli]",
+        "Error: CLI dependencies not found. Please install with: pip install mii-lib[cli]",
         file=sys.stderr,
     )
     sys.exit(1)

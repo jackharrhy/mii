@@ -1,6 +1,6 @@
-site_name: mii
+site_name: mii-lib
 site_description: Library and CLI for extracting .mii files from misc. Wii/Dolphin data dumps
-site_url: https://pypi.org/project/mii/
+site_url: https://pypi.org/project/mii-lib/
 
 theme:
   name: material
@@ -25,8 +25,8 @@ theme:
     - search.highlight
     - content.code.annotate
 
-repo_name: mii
-repo_url: https://pypi.org/project/mii/
+repo_name: mii-lib
+repo_url: https://pypi.org/project/mii-lib/
 
 plugins:
   - search

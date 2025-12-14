@@ -1,4 +1,4 @@
-# mii
+# mii-lib
 
 Library and CLI for extracting `.mii` files from misc. Wii/Dolphin data dumps, and extracting information from them (name, fav. color, gender, etc.)
 
@@ -16,8 +16,8 @@ If none of these exist, check where Dolphin is saving its data to in its setting
 
 ## Installation
 
-- Library only: `pip install mii`
-- With CLI: `pip install mii[cli]` / `uvx mii-cli --help` / etc.
+- Library only: `pip install mii-lib`
+- With CLI: `pip install mii-lib[cli]` / `uvx mii-cli --help` / etc.
 
 ## Quick Start
 

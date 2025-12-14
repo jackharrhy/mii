@@ -1,13 +1,13 @@
-# mii
+# mii-lib
 
-https://pypi.org/project/mii/
+https://pypi.org/project/mii-lib/
 
 Library and CLI for extracting .mii files from misc. Wii/Dolphin data dumps, and extracting information from them (name, fav. color, gender, etc.)
 
 ## Installation
 
-- Library only: `pip install mii`
-- With CLI: `pip install mii[cli]` / `uvx mii-cli --help` / etc.
+- Library only: `pip install mii-lib`
+- With CLI: `pip install mii-lib[cli]` / `uvx mii-cli --help` / etc.
 
 ## Usage
 
