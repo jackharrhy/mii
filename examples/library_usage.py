@@ -3,150 +3,163 @@
 Example usage of the mii library for programmatic Mii file extraction and analysis
 
 This demonstrates how to use the library without the CLI interface.
+The library works entirely in-memory - no disk I/O unless you explicitly write files.
 """
 
 from pathlib import Path
 from mii import (
-    MiiFileReader,
+    MiiDatabase,
+    MiiParser,
     MiiType,
-    extract_miis_from_type,
-    MiiExtractionError,
-    get_mii_mode,
-    get_mii_seconds,
-    get_mii_datetime,
+    MiiDatabaseError,
 )
 
 
-def example_extract_single_type():
-    """Example: Extract Miis from a specific database type"""
+def example_load_database():
+    """Example: Load Miis from a database file into memory"""
     print("=" * 60)
-    print("Example 1: Extracting Miis from Wii Plaza database")
+    print("Example 1: Loading Miis from Wii Plaza database")
     print("=" * 60)
 
-    output_dir = Path("./extracted_miis")
-    input_file = Path("RFL_DB.dat")  # Optional: specify custom input file
+    input_file = Path("RFL_DB.dat")
 
     try:
-        # Extract from Wii Plaza database
-        extracted_files = extract_miis_from_type(
-            MiiType.WII_PLAZA,
-            input_file=input_file if input_file.exists() else None,
-            output_dir=output_dir,
+        source_file = (
+            input_file if input_file.exists() else Path(MiiType.WII_PLAZA.SOURCE)
         )
+        database = MiiDatabase(source_file, MiiType.WII_PLAZA)
 
-        print(f"Successfully extracted {len(extracted_files)} Miis")
-        print(f"Files saved to: {output_dir}")
-        print(
-            f"First few files: {extracted_files[:3] if len(extracted_files) >= 3 else extracted_files}"
-        )
+        print(f"Successfully loaded {len(database)} Miis into memory")
+        print(f"Database type: {database.mii_type.display_name}")
+        print(f"Source file: {database.file_path}")
 
-    except MiiExtractionError as e:
-        print(f"Extraction failed: {e}")
+        print("\nFirst 3 Miis:")
+        for idx, mii in enumerate(database):
+            if idx >= 3:
+                break
+            print(f"  {idx}: {mii.name} by {mii.creator_name}")
+
+    except MiiDatabaseError as e:
+        print(f"Loading failed: {e}")
 
 
-def example_extract_all_types():
-    """Example: Extract Miis from all supported database types"""
+def example_work_with_mii_objects():
+    """Example: Work with Mii dataclass objects"""
     print("\n" + "=" * 60)
-    print("Example 2: Extracting Miis from all database types")
+    print("Example 2: Working with Mii objects")
     print("=" * 60)
 
-    output_base = Path("./extracted_all")
-    total_extracted = 0
+    try:
+        database = MiiDatabase(Path(MiiType.WII_PLAZA.SOURCE), MiiType.WII_PLAZA)
+    except MiiDatabaseError:
+        print("Note: Database file not found. Skipping this example.")
+        return
 
-    for mii_type in MiiType:
-        type_output = output_base / mii_type.display_name
-        try:
-            extracted_files = extract_miis_from_type(mii_type, output_dir=type_output)
-            print(f"{mii_type.display_name}: {len(extracted_files)} Miis extracted")
-            total_extracted += len(extracted_files)
-        except MiiExtractionError as e:
-            print(f"{mii_type.display_name}: Failed - {e}")
+    if len(database) == 0:
+        print("No Miis found in database")
+        return
 
-    print(f"\nTotal Miis extracted: {total_extracted}")
+    mii = database[0]
+
+    print(f"Mii Name: {mii.name}")
+    print(f"Creator: {mii.creator_name}")
+    print(f"Mii ID: {mii.get_mii_id_hex()}")
+    print(f"Gender: {mii.get_gender_string()}")
+    print(f"Birthday: {mii.get_birthday_string()}")
+    print(f"Favorite Color: {mii.favorite_color}")
+    print(f"Is Favorite: {mii.is_favorite}")
+
+    print(f"\nRaw data size: {len(mii.raw_data)} bytes")
+    print(f"With padding: {len(mii.to_bytes())} bytes")
 
 
-def example_read_metadata():
-    """Example: Read metadata from a single Mii file"""
+def example_iterate_and_filter():
+    """Example: Iterate and filter Miis"""
     print("\n" + "=" * 60)
-    print("Example 3: Reading metadata from a Mii file")
+    print("Example 3: Iterating and filtering Miis")
     print("=" * 60)
 
-    # Assuming we have a Mii file
+    try:
+        database = MiiDatabase(Path(MiiType.WII_PLAZA.SOURCE), MiiType.WII_PLAZA)
+    except MiiDatabaseError:
+        print("Note: Database file not found. Skipping this example.")
+        return
+
+    print(f"Total Miis: {len(database)}")
+
+    favorites = database.get_favorites()
+    print(f"Favorite Miis: {len(favorites)}")
+
+    red_miis = database.filter(lambda m: m.favorite_color == "Red")
+    print(f"Red favorite color Miis: {len(red_miis)}")
+
+    named_miis = database.filter(lambda m: m.name and m.name != "Unnamed")
+    print(f"Named Miis: {len(named_miis)}")
+
+    if red_miis:
+        print("\nFirst Red Miis:")
+        for mii in red_miis[:3]:
+            print(f"  {mii.name} by {mii.creator_name}")
+
+
+def example_parse_single_file():
+    """Example: Parse a single Mii file"""
+    print("\n" + "=" * 60)
+    print("Example 4: Parsing a single Mii file")
+    print("=" * 60)
+
     mii_file = Path("./extracted_miis/WII_PL00000.mii")
 
     if not mii_file.exists():
-        print(f"Note: {mii_file} does not exist. Skipping this example.")
-        print("Extract some Miis first using example_extract_single_type()")
+        print(f"Note: {mii_file} does not exist.")
+        print("Extract some Miis first using the CLI or write them programmatically.")
         return
 
     try:
-        reader = MiiFileReader(mii_file)
+        with open(mii_file, "rb") as f:
+            mii_data = f.read()
 
-        # Read individual fields
-        mii_name = reader.read_mii_name()
-        creator_name = reader.read_creator_name()
-        mii_id = reader.read_mii_id()
-        metadata = reader.read_mii_metadata()
-        color_name = reader.get_color_name(metadata[3])
+        mii = MiiParser.parse(mii_data)
 
-        print(f"Mii Name: {mii_name}")
-        print(f"Creator: {creator_name}")
-        print(f"Mii ID: {mii_id.hex().upper()}")
-        print(f"Gender: {'Female' if metadata[0] else 'Male'}")
-        print(
-            f"Birthday: {metadata[1]}/{metadata[2]}"
-            if metadata[1] and metadata[2]
-            else "Birthday: Not set"
-        )
-        print(f"Favorite Color: {color_name}")
-        print(f"Is Favorite: {metadata[4]}")
-
-        # Or use the convenience method
-        print("\n--- Using read_all_metadata() ---")
-        all_metadata = reader.read_all_metadata()
-        for key, value in all_metadata.items():
-            print(f"{key}: {value}")
+        print(f"Mii Name: {mii.name}")
+        print(f"Creator: {mii.creator_name}")
+        print(f"Gender: {mii.get_gender_string()}")
+        print(f"Birthday: {mii.get_birthday_string()}")
+        print(f"Favorite Color: {mii.favorite_color}")
+        print(f"Mii ID: {mii.get_mii_id_hex()}")
 
     except Exception as e:
         print(f"Error reading Mii file: {e}")
 
 
-def example_batch_metadata():
-    """Example: Process multiple Mii files and collect metadata"""
+def example_write_miis_to_disk():
+    """Example: Write Miis from database to disk files"""
     print("\n" + "=" * 60)
-    print("Example 4: Batch processing Mii files")
+    print("Example 5: Writing Miis to disk")
     print("=" * 60)
 
-    mii_directory = Path("./extracted_miis")
-    mii_files = list(mii_directory.glob("*.mii"))
+    output_dir = Path("./extracted_miis")
 
-    if not mii_files:
-        print(f"No .mii files found in {mii_directory}")
+    try:
+        database = MiiDatabase(Path(MiiType.WII_PLAZA.SOURCE), MiiType.WII_PLAZA)
+    except MiiDatabaseError:
+        print("Note: Database file not found. Skipping this example.")
         return
 
-    print(f"Processing {len(mii_files)} Mii files...")
+    exported_paths = database.export_all(output_dir)
+    print(f"Wrote {len(exported_paths)} Miis to {output_dir}")
 
-    metadata_list = []
-    for mii_file in sorted(mii_files)[:10]:  # Process first 10
-        try:
-            reader = MiiFileReader(mii_file)
-            metadata = reader.read_all_metadata()
-            metadata["filename"] = mii_file.name
-            metadata_list.append(metadata)
-        except Exception as e:
-            print(f"Error processing {mii_file.name}: {e}")
-
-    # Print summary
-    print(f"\nSuccessfully processed {len(metadata_list)} files")
-    print("\nSummary:")
-    for meta in metadata_list[:5]:  # Show first 5
-        print(f"  {meta['filename']}: {meta['mii_name']} by {meta['creator_name']}")
+    # Example: Export a single Mii
+    if len(database) > 0:
+        single_mii_path = output_dir / "single_mii.mii"
+        database[0].export(single_mii_path)
+        print(f"Also exported single Mii to {single_mii_path}")
 
 
 def example_timestamps():
     """Example: Extract and display creation timestamps"""
     print("\n" + "=" * 60)
-    print("Example 5: Extracting creation timestamps")
+    print("Example 6: Extracting creation timestamps")
     print("=" * 60)
 
     mii_directory = Path("./extracted_miis")
@@ -160,14 +173,12 @@ def example_timestamps():
 
     for mii_file in sorted(mii_files)[:5]:  # Show first 5
         try:
-            file_size = mii_file.stat().st_size
-            is_wii_mii = get_mii_mode(mii_file.name, file_size)
-
             with open(mii_file, "rb") as f:
-                seconds = get_mii_seconds(f, is_wii_mii)
-                creation_time = get_mii_datetime(seconds, is_wii_mii)
+                mii_data = f.read()
+            mii = MiiParser.parse(mii_data)
 
-            mii_type = "Wii" if is_wii_mii else "3DS/WiiU"
+            creation_time = mii.get_creation_datetime()
+            mii_type = "Wii" if mii.is_wii_mii else "3DS/WiiU"
             print(f"{mii_file.name}:")
             print(f"  Type: {mii_type}")
             print(f"  Creation Time: {creation_time.strftime('%Y-%m-%d %H:%M:%S')}")
@@ -180,69 +191,100 @@ def example_timestamps():
 def example_error_handling():
     """Example: Proper error handling"""
     print("\n" + "=" * 60)
-    print("Example 6: Error handling")
+    print("Example 7: Error handling")
     print("=" * 60)
 
-    # Try to extract from a non-existent file
+    # Try to load from a non-existent file
     try:
-        extracted_files = extract_miis_from_type(
-            MiiType.WII_PLAZA,
-            input_file=Path("nonexistent.dat"),
-            output_dir=Path("./output"),
-        )
-    except MiiExtractionError as e:
+        database = MiiDatabase(Path("nonexistent.dat"), MiiType.WII_PLAZA)
+    except MiiDatabaseError as e:
         print(f"Caught expected error: {e}")
 
-    # Try to read a non-existent Mii file
+    # Try to parse invalid data
     try:
-        reader = MiiFileReader(Path("nonexistent.mii"))
-    except FileNotFoundError as e:
-        print(f"Caught expected error: {e}")
+        mii = MiiParser.parse(b"invalid data")
+    except Exception as e:
+        print(f"Caught expected parsing error: {e}")
 
 
 def example_custom_processing():
-    """Example: Custom processing pipeline"""
+    """Example: Custom processing pipeline with in-memory data"""
     print("\n" + "=" * 60)
-    print("Example 7: Custom processing pipeline")
+    print("Example 8: Custom processing pipeline")
     print("=" * 60)
 
-    mii_directory = Path("./extracted_miis")
-    mii_files = list(mii_directory.glob("*.mii"))
-
-    if not mii_files:
-        print(f"No .mii files found in {mii_directory}")
+    try:
+        database = MiiDatabase(Path(MiiType.WII_PLAZA.SOURCE), MiiType.WII_PLAZA)
+    except MiiDatabaseError:
+        print("Note: Database file not found. Skipping this example.")
         return
 
-    # Filter Miis by favorite color
-    red_miis = []
-    for mii_file in mii_files:
-        try:
-            reader = MiiFileReader(mii_file)
-            metadata = reader.read_all_metadata()
-            if metadata["favorite_color"] == "Red":
-                red_miis.append((mii_file.name, metadata["mii_name"]))
-        except Exception:
-            pass
+    # Process Miis in memory without writing to disk
+    red_miis = database.filter(lambda m: m.favorite_color == "Red")
+    favorite_miis = database.filter(lambda m: m.is_favorite)
+    named_miis = database.filter(lambda m: m.name and m.name != "Unnamed")
 
-    print(f"Found {len(red_miis)} Miis with Red as favorite color:")
-    for filename, name in red_miis[:5]:
-        print(f"  {filename}: {name}")
+    print(f"Total Miis: {len(database)}")
+    print(f"Red favorite color: {len(red_miis)}")
+    print(f"Favorites: {len(favorite_miis)}")
+    print(f"Named: {len(named_miis)}")
+
+    # Find Miis by creator
+    creator_miis = {}
+    for mii in database:
+        if mii.creator_name and mii.creator_name != "Unknown":
+            creator_miis.setdefault(mii.creator_name, []).append(mii.name)
+
+    print(f"\nCreators: {len(creator_miis)}")
+    for creator, names in list(creator_miis.items())[:3]:
+        print(f"  {creator}: {len(names)} Miis")
+
+
+def example_multiple_databases():
+    """Example: Work with multiple database types"""
+    print("\n" + "=" * 60)
+    print("Example 9: Working with multiple database types")
+    print("=" * 60)
+
+    databases = {}
+    total_miis = 0
+
+    for mii_type in MiiType:
+        try:
+            database = MiiDatabase(Path(mii_type.SOURCE), mii_type)
+            databases[mii_type.display_name] = database
+            total_miis += len(database)
+            print(f"{mii_type.display_name}: {len(database)} Miis")
+        except MiiDatabaseError:
+            print(f"{mii_type.display_name}: Not found")
+
+    print(f"\nTotal Miis across all databases: {total_miis}")
+
+    # Combine Miis from different databases
+    if databases:
+        all_miis = []
+        for db in databases.values():
+            all_miis.extend(db.get_all())
+
+        print(f"\nCombined total: {len(all_miis)} unique Miis")
 
 
 if __name__ == "__main__":
     print("Mii Library Usage Examples")
     print("=" * 60)
-    print("\nNote: Some examples require extracted Mii files.")
-    print("Run example_extract_single_type() first to extract some Miis.\n")
+    print("\nNote: Some examples require database files.")
+    print("Place RFL_DB.dat, FFL_ODB.dat, or CFL_DB.dat in the current directory.\n")
 
     # Run examples
-    example_extract_single_type()
-    example_extract_all_types()
-    example_read_metadata()
-    example_batch_metadata()
+    example_load_database()
+    example_work_with_mii_objects()
+    example_iterate_and_filter()
+    example_parse_single_file()
+    example_write_miis_to_disk()
     example_timestamps()
     example_error_handling()
     example_custom_processing()
+    example_multiple_databases()
 
     print("\n" + "=" * 60)
     print("All examples completed!")
